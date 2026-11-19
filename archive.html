@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="description" content="세상의 모든 나비를 모으는 공용 나비 표본 아카이브." />
+  <title>나비 표본 — BUTTERFLY ARCHIVE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="config.js"></script>
+</head>
+<body class="archive-page">
+  <div class="site-shell">
+    <header class="topbar">
+      <a class="brand" href="index.html" aria-label="나비도감 홈으로">
+        <span class="brand-mark">✳</span><span>나비도감</span>
+      </a>
+      <nav class="main-nav" aria-label="주요 메뉴">
+        <a href="index.html">처음으로</a>
+      </nav>
+      <button class="add-button" id="open-upload"><span>＋</span> 표본 추가</button>
+    </header>
+
+    <main>
+      <section class="archive-section" id="archive">
+        <div class="section-heading">
+          <div><p class="eyebrow">모두의 컬렉션 <span class="accent-dot">●</span></p><h2>나비 표본 <span class="collection-count" id="collection-count">(00)</span></h2></div>
+          <p class="section-note">하나의 이름, 하나의 분류.<br />여러 시선이 함께 만드는 도감.</p>
+        </div>
+        <div class="archive-toolbar">
+          <div class="category-list" id="category-list" aria-label="카테고리별 보기"></div>
+          <label class="search-box"><span>⌕</span><input type="search" id="search-input" placeholder="인덱스 검색" aria-label="인덱스 검색" /></label>
+        </div>
+        <div class="status-line"><span id="result-label">최근 등록</span><span id="connection-state" class="connection-state"><i></i> 연결 확인 중</span></div>
+        <div class="specimen-grid" id="specimen-grid" aria-live="polite"></div>
+        <div class="archive-empty" id="archive-empty" hidden><span class="empty-symbol">✳</span><p>아직 기록된 표본이 없습니다.</p><button class="text-link-button" id="empty-add">첫 표본을 추가하기 <span>↗</span></button></div>
+        <div class="load-error" id="load-error" hidden><p>인덱스를 불러오지 못했습니다.</p><button id="retry-load" class="outline-button">다시 시도</button></div>
+        <button class="load-more" id="load-more" hidden>더 보기 <span>＋</span></button>
+      </section>
+
+    </main>
+
+    <footer class="footer"><a class="brand" href="index.html"><span class="brand-mark">✳</span><span>나비도감</span></a><span>© 2025–∞ BUTTERFLY ARCHIVE</span><span>모두의 상상으로 기록됩니다</span></footer>
+  </div>
+
+  <dialog id="upload-dialog" class="upload-dialog">
+    <div class="dialog-head"><span class="eyebrow">새 표본 기록</span><button class="icon-button" id="close-upload" aria-label="닫기">×</button></div>
+    <form id="specimen-form">
+      <div class="upload-layout">
+        <div class="photo-picker" id="photo-picker">
+          <img id="photo-preview" alt="선택한 표본 미리보기" hidden />
+          <div class="picker-placeholder" id="picker-placeholder"><span class="picker-plus">＋</span><strong>나비를 사진으로 남겨보세요</strong><small>사진을 끌어오거나 촬영 방식을 선택하세요</small></div>
+          <div class="photo-actions"><label class="photo-action">사진 선택<input id="photo-file" type="file" accept="image/*" hidden /></label><button class="photo-action camera-action" id="open-camera" type="button">사진 촬영</button></div>
+          <input id="camera-file" type="file" accept="image/*" capture="environment" hidden />
+        </div>
+        <div class="form-fields">
+          <label class="field"><span>이름 <b>*</b></span><input name="name" required maxlength="80" placeholder="예: 창문에 비친 오후" /></label>
+          <label class="field"><span>카테고리 <b>*</b></span><select name="category" id="category-select" required></select></label>
+          <label class="field new-category-field" id="new-category-field" hidden><span>새 카테고리 이름 <b>*</b></span><input name="newCategory" id="new-category" maxlength="40" placeholder="원하는 분류를 직접 입력하세요" /></label>
+          <label class="field"><span>특징과 이야기</span><textarea name="description" rows="4" maxlength="600" placeholder="이것을 나비라고 생각한 순간을 적어주세요."></textarea></label>
+          <p class="form-hint">무엇이든 나비가 될 수 있습니다. 사진은 8MB 이하로 올려주세요.</p>
+          <p class="form-error" id="form-error" role="alert" hidden></p>
+          <button class="submit-button" type="submit" id="submit-specimen">인덱스에 기록하기 <span>↗</span></button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="detail-dialog" class="detail-dialog"><button class="icon-button detail-close" id="close-detail" aria-label="닫기">×</button><div id="detail-content"></div></dialog>
+  <dialog id="camera-dialog" class="camera-dialog" aria-labelledby="camera-title">
+    <div class="dialog-head"><span class="eyebrow" id="camera-title">표본 촬영</span><button class="icon-button" id="close-camera" type="button" aria-label="닫기">×</button></div>
+    <div class="camera-stage"><video id="camera-video" autoplay playsinline muted></video><div class="camera-placeholder" id="camera-placeholder"><span class="camera-crosshair">＋</span><p>카메라에 나비를 담아보세요.</p><small>촬영을 시작하면 카메라 권한을 요청합니다.</small></div><div class="camera-error" id="camera-error" role="alert" hidden></div></div>
+    <div class="camera-controls"><button class="outline-button" id="camera-fallback" type="button">기기 카메라 열기</button><button class="shutter-button" id="capture-photo" type="button" disabled><span></span> 촬영</button></div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
