@@ -6,6 +6,7 @@
   const endpoint = (path) => `${config.url.replace(/\/$/, '')}${path}`;
   const STORE_KEY = 'butterfly-archive-v2';
   const OWNER_TOKENS_KEY = 'butterfly-archive-owner-tokens-v1';
+  const COMMENT_TOKENS_KEY = 'butterfly-comment-delete-tokens-v1';
   const $ = (sel) => document.querySelector(sel);
   const grid = $('#specimen-grid');
   const gridEmpty = $('#archive-empty');
@@ -15,6 +16,7 @@
   let cameraStream = null;
   let toastTimer;
   let adminSession = null;
+  let isArchiveAdmin = false;
   let activeSpecimenId = null;
 
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -22,6 +24,7 @@
   const sessionHeaders = (session, extra = {}) => ({ apikey: config.anonKey, Authorization: `Bearer ${session?.access_token || config.anonKey}`, ...extra });
   const getOwnerTokens = () => { try { return JSON.parse(localStorage.getItem(OWNER_TOKENS_KEY) || '{}') || {}; } catch { return {}; } };
   const getOwnerToken = (id) => getOwnerTokens()[String(id)] || '';
+  const getCommentTokens = () => { try { return JSON.parse(localStorage.getItem(COMMENT_TOKENS_KEY) || '{}') || {}; } catch { return {}; } };
   const announce = (message) => {
     const toast = $('#toast'); toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
@@ -76,6 +79,7 @@
 
   async function checkAdminSession(session) {
     adminSession = session || null;
+    isArchiveAdmin = false;
     const form = $('#notice-form'); const loginPanel = $('#notice-login-panel'); const message = $('#notice-message');
     if (!session) { form.hidden = true; loginPanel.hidden = false; message.textContent = ''; return false; }
     try {
@@ -83,7 +87,7 @@
       const response = await fetch(endpoint(`/rest/v1/archive_admins?select=email&email=eq.${encodeURIComponent(email)}`), { headers: sessionHeaders(session) });
       if (!response.ok) throw new Error('운영자 권한을 확인하지 못했어요.');
       const rows = await response.json();
-      if (rows.length) { loginPanel.hidden = true; form.hidden = false; message.textContent = `운영자 로그인됨 · ${email}`; return true; }
+      if (rows.length) { isArchiveAdmin = true; loginPanel.hidden = true; form.hidden = false; message.textContent = `운영자 로그인됨 · ${email}`; if (activeSpecimenId) loadComments(activeSpecimenId); return true; }
       form.hidden = true; loginPanel.hidden = true;
       const sqlEmail = email.replace(/'/g, "''");
       message.textContent = '로그인됐지만 운영자로 등록되지 않았어요. Supabase Dashboard → SQL Editor에서 아래 문장을 한 번 실행해 주세요: insert into public.archive_admins (email) values (lower(\'' + sqlEmail + '\')) on conflict do nothing;';
@@ -110,7 +114,42 @@
 
   function renderComments(comments) {
     const list = $('#comment-list');
-    list.innerHTML = comments.length ? comments.map((comment) => `<article class="comment-item"><div><strong>${escapeHTML(comment.author || '익명')}</strong><time>${dateLabel(comment.created_at)}</time></div><p>${escapeHTML(comment.body)}</p></article>`).join('') : '<p class="comment-empty">아직 댓글이 없습니다. 첫 댓글을 남겨보세요.</p>';
+    const tokens = getCommentTokens();
+    list.innerHTML = comments.length ? comments.map((comment) => {
+      const canDelete = isArchiveAdmin || Boolean(tokens[String(comment.id)]);
+      return `<article class="comment-item"><div><strong>${escapeHTML(comment.author || '익명')}</strong><div class="comment-meta"><time>${dateLabel(comment.created_at)}</time>${canDelete ? `<button class="delete-comment" type="button" data-comment-id="${escapeHTML(comment.id)}">삭제</button>` : ''}</div></div><p>${escapeHTML(comment.body)}</p></article>`;
+    }).join('') : '<p class="comment-empty">아직 댓글이 없습니다. 첫 댓글을 남겨보세요.</p>';
+    list.querySelectorAll('.delete-comment').forEach((button) => button.addEventListener('click', () => deleteComment(button.dataset.commentId)));
+  }
+
+  function newCommentToken() {
+    const bytes = new Uint8Array(32); crypto.getRandomValues(bytes);
+    return [...bytes].map((value) => value.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function deleteComment(id) {
+    const token = getCommentTokens()[String(id)] || null;
+    if (!token && !isArchiveAdmin) { announce('작성자 또는 운영자만 댓글을 삭제할 수 있어요.'); return; }
+    if (!window.confirm('이 댓글을 삭제할까요? 삭제 후에는 복구할 수 없습니다.')) return;
+    const button = [...document.querySelectorAll('.delete-comment')].find((item) => item.dataset.commentId === String(id));
+    if (button) { button.disabled = true; button.textContent = '삭제 중…'; }
+    try {
+      if (remote) {
+        const response = await fetch(endpoint('/rest/v1/rpc/delete_specimen_comment'), { method: 'POST', headers: headers({ 'Content-Type': 'application/json' }), body: JSON.stringify({ p_comment_id: Number(id), p_delete_token: token }) });
+        if (!response.ok) throw new Error('댓글을 삭제하지 못했어요. 작성자 또는 운영자인지 확인해 주세요.');
+        const deleted = await response.json();
+        if (!deleted) throw new Error('작성자 또는 운영자만 댓글을 삭제할 수 있어요.');
+      } else {
+        const key = `butterfly-comments-${activeSpecimenId}`;
+        const saved = JSON.parse(localStorage.getItem(key) || '[]').filter((comment) => String(comment.id) !== String(id));
+        localStorage.setItem(key, JSON.stringify(saved));
+      }
+      const tokens = getCommentTokens(); delete tokens[String(id)]; localStorage.setItem(COMMENT_TOKENS_KEY, JSON.stringify(tokens));
+      await loadComments(activeSpecimenId); announce('댓글을 삭제했어요.');
+    } catch (error) {
+      if (button) { button.disabled = false; button.textContent = '삭제'; }
+      announce(error.message || '댓글을 삭제하지 못했어요.');
+    }
   }
 
   async function submitComment(event) {
@@ -124,15 +163,18 @@
     const submit = $('#submit-comment'); submit.disabled = true; message.textContent = '댓글을 올리는 중…';
     try {
       if (remote) {
-        const response = await fetch(endpoint('/rest/v1/specimen_comments'), { method: 'POST', headers: headers({ 'Content-Type': 'application/json', Prefer: 'return=representation' }), body: JSON.stringify({ specimen_id: activeSpecimenId, author, body }) });
+        const deleteToken = newCommentToken();
+        const response = await fetch(endpoint('/rest/v1/rpc/add_specimen_comment'), { method: 'POST', headers: headers({ 'Content-Type': 'application/json' }), body: JSON.stringify({ p_specimen_id: activeSpecimenId, p_author: author, p_body: body, p_delete_token: deleteToken }) });
         if (!response.ok) throw new Error('댓글을 올리지 못했어요. 잠시 후 다시 시도해 주세요.');
         const created = await response.json();
-        const existing = await fetch(endpoint(`/rest/v1/specimen_comments?select=id,specimen_id,author,body,created_at&specimen_id=eq.${encodeURIComponent(activeSpecimenId)}&order=created_at.asc`), { headers: headers() });
-        if (!existing.ok) throw new Error('댓글은 저장됐지만 목록을 새로고침하지 못했어요.');
-        renderComments(await existing.json());
+        const commentId = Array.isArray(created) ? created[0]?.comment_id : created;
+        if (commentId) { const tokens = getCommentTokens(); tokens[String(commentId)] = deleteToken; localStorage.setItem(COMMENT_TOKENS_KEY, JSON.stringify(tokens)); }
+        await loadComments(activeSpecimenId);
       } else {
         const key = `butterfly-comments-${activeSpecimenId}`; const saved = JSON.parse(localStorage.getItem(key) || '[]');
-        saved.push({ author, body, created_at: new Date().toISOString() }); localStorage.setItem(key, JSON.stringify(saved)); renderComments(saved);
+        const id = `local-comment-${crypto.randomUUID()}`; saved.push({ id, author, body, created_at: new Date().toISOString() });
+        const tokens = getCommentTokens(); tokens[id] = newCommentToken(); localStorage.setItem(COMMENT_TOKENS_KEY, JSON.stringify(tokens));
+        localStorage.setItem(key, JSON.stringify(saved)); renderComments(saved);
       }
       form.reset(); message.textContent = '댓글을 남겼어요.';
     } catch (error) { message.textContent = error.message || '댓글을 올리지 못했어요.'; }
@@ -358,7 +400,10 @@
   picker.addEventListener('drop', (e) => setPhoto(e.dataTransfer.files[0]));
   document.querySelectorAll('.main-nav a').forEach((link) => link.addEventListener('click', () => { document.querySelectorAll('.main-nav a').forEach((a) => a.classList.remove('active')); link.classList.add('active'); }));
   loadNotices();
-  if (authClient) authClient.auth.onAuthStateChange((_event, session) => { if (session && $('#notice-dialog').open) checkAdminSession(session); });
+  if (authClient) {
+    authClient.auth.onAuthStateChange((_event, session) => { if ($('#notice-dialog').open) checkAdminSession(session); });
+    authClient.auth.getSession().then(({ data }) => { if (data.session) checkAdminSession(data.session); });
+  }
   loadSpecimens().then(() => {
     if (new URLSearchParams(location.search).get('add') === '1') openUpload();
   });

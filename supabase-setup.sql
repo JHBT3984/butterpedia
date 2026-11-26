@@ -92,13 +92,77 @@ create table if not exists public.specimen_comments (
   created_at timestamptz not null default now()
 );
 alter table public.specimen_comments enable row level security;
-grant select, insert on public.specimen_comments to anon, authenticated;
+grant select on public.specimen_comments to anon, authenticated;
+revoke insert, update, delete on public.specimen_comments from anon, authenticated;
 drop policy if exists "Anyone can read specimen comments" on public.specimen_comments;
 create policy "Anyone can read specimen comments" on public.specimen_comments for select using (true);
 drop policy if exists "Anyone can add specimen comments" on public.specimen_comments;
-create policy "Anyone can add specimen comments" on public.specimen_comments for insert with check (
-  char_length(trim(body)) between 1 and 1000 and char_length(author) between 1 and 40
+drop policy if exists "Comment authors and admins can delete comments" on public.specimen_comments;
+
+-- Keep per-comment deletion credentials private. A commenter can delete from
+-- the browser that created it; the archive operator can delete any comment.
+create table if not exists public.specimen_comment_delete_keys (
+  comment_id bigint primary key references public.specimen_comments(id) on delete cascade,
+  token_hash text not null
 );
+alter table public.specimen_comment_delete_keys enable row level security;
+revoke all on public.specimen_comment_delete_keys from anon, authenticated;
+
+create or replace function public.add_specimen_comment(
+  p_specimen_id uuid,
+  p_author text,
+  p_body text,
+  p_delete_token text
+)
+returns table(comment_id bigint)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_comment_id bigint;
+begin
+  if char_length(trim(coalesce(p_body, ''))) not between 1 and 1000
+     or char_length(coalesce(p_author, '익명')) not between 1 and 40
+     or char_length(coalesce(p_delete_token, '')) <> 64 then
+    raise exception 'Invalid comment';
+  end if;
+  insert into public.specimen_comments (specimen_id, author, body)
+  values (p_specimen_id, coalesce(nullif(trim(p_author), ''), '익명'), trim(p_body))
+  returning id into v_comment_id;
+  insert into public.specimen_comment_delete_keys (comment_id, token_hash)
+  values (v_comment_id, encode(digest(p_delete_token, 'sha256'), 'hex'));
+  return query select v_comment_id;
+end;
+$$;
+revoke all on function public.add_specimen_comment(uuid, text, text, text) from public;
+grant execute on function public.add_specimen_comment(uuid, text, text, text) to anon, authenticated;
+
+create or replace function public.delete_specimen_comment(p_comment_id bigint, p_delete_token text default null)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_is_author boolean := false;
+begin
+  if p_delete_token is not null and char_length(p_delete_token) = 64 then
+    select exists (
+      select 1 from public.specimen_comment_delete_keys k
+      where k.comment_id = p_comment_id
+        and k.token_hash = encode(digest(p_delete_token, 'sha256'), 'hex')
+    ) into v_is_author;
+  end if;
+  if not v_is_author and not public.is_archive_admin() then
+    return false;
+  end if;
+  delete from public.specimen_comments where id = p_comment_id;
+  return found;
+end;
+$$;
+revoke all on function public.delete_specimen_comment(bigint, text) from public;
+grant execute on function public.delete_specimen_comment(bigint, text) to anon, authenticated;
 
 -- Keep the owner allowlist private. Add the owner's email from the signed-in
 -- Supabase Auth account using the one-time SQL shown in the README.
