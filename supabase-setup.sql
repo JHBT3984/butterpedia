@@ -6,17 +6,32 @@ create table if not exists public.specimens (
   name text not null check (char_length(name) between 1 and 80),
   category text not null check (char_length(category) between 1 and 40),
   description text not null default '' check (char_length(description) <= 600),
+  observed_on date,
+  location text not null default '',
+  dimensions text not null default '',
+  color_pattern text not null default '',
+  material text not null default '',
+  form text not null default '',
   image_url text not null,
   created_at timestamptz not null default now()
 );
 
+alter table public.specimens add column if not exists observed_on date;
+alter table public.specimens add column if not exists location text not null default '';
+alter table public.specimens add column if not exists dimensions text not null default '';
+alter table public.specimens add column if not exists color_pattern text not null default '';
+alter table public.specimens add column if not exists material text not null default '';
+alter table public.specimens add column if not exists form text not null default '';
+
 alter table public.specimens enable row level security;
-grant select, insert on public.specimens to anon, authenticated;
+grant select, insert, delete on public.specimens to anon, authenticated;
 
 drop policy if exists "Anyone can read public specimens" on public.specimens;
 create policy "Anyone can read public specimens" on public.specimens for select using (true);
 drop policy if exists "Anyone can add public specimens" on public.specimens;
 create policy "Anyone can add public specimens" on public.specimens for insert with check (true);
+drop policy if exists "Anyone can delete public specimens" on public.specimens;
+create policy "Anyone can delete public specimens" on public.specimens for delete using (true);
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('specimen-images', 'specimen-images', true, 8388608, array['image/jpeg'])
@@ -26,3 +41,5 @@ drop policy if exists "Anyone can read specimen photos" on storage.objects;
 create policy "Anyone can read specimen photos" on storage.objects for select using (bucket_id = 'specimen-images');
 drop policy if exists "Anyone can upload specimen photos" on storage.objects;
 create policy "Anyone can upload specimen photos" on storage.objects for insert with check (bucket_id = 'specimen-images');
+drop policy if exists "Anyone can delete specimen photos" on storage.objects;
+create policy "Anyone can delete specimen photos" on storage.objects for delete using (bucket_id = 'specimen-images');

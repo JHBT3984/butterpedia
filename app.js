@@ -4,13 +4,6 @@
   const remote = Boolean(config.url && config.anonKey);
   const endpoint = (path) => `${config.url.replace(/\/$/, '')}${path}`;
   const STORE_KEY = 'butterfly-archive-v2';
-  const categories = ['진짜 나비', '나뭇잎', '종이', '포장지', '그림자', '꽃', '기타'];
-  const starter = [
-    { id: 'preview-001', name: '귤빛나비', category: '진짜 나비', description: '검은 나비 한 마리가 가지에 내려앉아 오후를 바라본다.', image_url: 'assets/hero-butterfly.png', created_at: '2026-10-19T09:00:00.000Z' },
-    { id: 'preview-002', name: '포장지나비', category: '포장지', description: '바람에 붙잡힌 얇은 포장지가 작은 날갯짓을 하고 있었다.', image_url: 'assets/wrapper-butterfly.png', created_at: '2026-10-18T09:00:00.000Z' },
-    { id: 'preview-003', name: '그림자나비', category: '그림자', description: '늦은 오후의 빛이 잠시 벽에 남겨두고 간 형체.', image_url: 'assets/shadow-butterfly.png', created_at: '2026-10-17T09:00:00.000Z' },
-    { id: 'preview-004', name: '접지나비', category: '종이', description: '검은 종이 한 장을 접었다. 그 안에 날개가 있었다.', image_url: 'assets/paper-butterfly.png', created_at: '2026-10-16T09:00:00.000Z' }
-  ];
   const $ = (sel) => document.querySelector(sel);
   const grid = $('#specimen-grid');
   const gridEmpty = $('#archive-empty');
@@ -33,7 +26,7 @@
     const d = new Date(value); if (Number.isNaN(d.getTime())) return '';
     return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
   };
-  const listCategories = () => [...new Set([...categories, ...specimens.map((s) => s.category).filter(Boolean)])];
+  const listCategories = () => [...new Set(specimens.map((s) => s.category).filter((name) => name && name !== '진짜 나비'))];
   const applyRequestedCategory = () => {
     const requested = new URLSearchParams(location.search).get('category');
     if (requested && listCategories().includes(requested)) selectedCategory = requested;
@@ -46,10 +39,6 @@
     list.querySelectorAll('button').forEach((button) => button.addEventListener('click', () => {
       selectedCategory = button.dataset.category; updateCategoryControls(); renderSpecimens();
     }));
-    const select = $('#category-select');
-    const current = select.value;
-    select.innerHTML = all.map((name) => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('') + '<option value="__new">＋ 새 카테고리 만들기</option>';
-    if (current && (all.includes(current) || current === '__new')) select.value = current;
   }
 
   function renderSpecimens() {
@@ -69,13 +58,9 @@
 
   async function loadSpecimens() {
     if (!remote) {
-      try { specimens = JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || starter; }
-      catch { specimens = starter; }
-      if (specimens.some((item) => String(item.id).startsWith('preview-'))) {
-        const seedsById = new Map(starter.map((item) => [item.id, item]));
-        const ids = new Set(specimens.filter((item) => String(item.id).startsWith('preview-')).map((item) => item.id));
-        specimens = [...specimens.map((item) => seedsById.get(item.id) || item), ...starter.filter((item) => !ids.has(item.id))];
-      }
+      try { specimens = JSON.parse(localStorage.getItem(STORE_KEY) || '[]') || []; }
+      catch { specimens = []; }
+      specimens = specimens.filter((item) => !String(item.id).startsWith('preview-') && item.category !== '진짜 나비');
       localStorage.setItem(STORE_KEY, JSON.stringify(specimens));
       applyRequestedCategory(); setConnection('로컬 미리보기 · 이 기기에만 저장', 'offline'); updateCategoryControls(); renderSpecimens(); return;
     }
@@ -84,7 +69,7 @@
     try {
       const response = await fetch(endpoint('/rest/v1/specimens?select=*&order=created_at.desc'), { headers: headers() });
       if (!response.ok) throw new Error(await response.text());
-      specimens = await response.json(); applyRequestedCategory(); setConnection('모두의 인덱스 연결됨', 'connected'); updateCategoryControls(); renderSpecimens();
+      specimens = (await response.json()).filter((item) => item.category !== '진짜 나비'); applyRequestedCategory(); setConnection('모두의 인덱스 연결됨', 'connected'); updateCategoryControls(); renderSpecimens();
     } catch (error) {
       console.error('Archive load failed:', error); setConnection('연결 오류', 'offline'); grid.innerHTML = ''; gridEmpty.hidden = true; $('#load-error').hidden = false;
     }
@@ -92,8 +77,45 @@
 
   function showDetail(id) {
     const item = specimens.find((s) => String(s.id) === String(id)); if (!item) return;
-    $('#detail-content').innerHTML = `<div class="detail-layout"><img src="${escapeHTML(item.image_url || 'assets/hero-butterfly.png')}" alt="${escapeHTML(item.name)}"/><div class="detail-copy"><p class="eyebrow">모두의 인덱스에 기록된 표본</p><h2>${escapeHTML(item.name)}</h2><p class="detail-category">${escapeHTML(item.category)}</p><p class="detail-description">${escapeHTML(item.description || '아직 적힌 이야기가 없습니다.')}</p><p class="detail-date">기록일 ${dateLabel(item.created_at)}</p></div></div>`;
+    const facts = [
+      ['관찰일', item.observed_on && dateLabel(item.observed_on)],
+      ['발견 장소', item.location],
+      ['크기', item.dimensions],
+      ['색과 무늬', item.color_pattern],
+      ['재질', item.material],
+      ['형태', item.form]
+    ].filter(([, value]) => value);
+    const factsMarkup = facts.length ? `<dl class="detail-facts">${facts.map(([label, value]) => `<div><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value)}</dd></div>`).join('')}</dl>` : '';
+    $('#detail-content').innerHTML = `<div class="detail-layout"><img src="${escapeHTML(item.image_url || 'assets/orange-butterfly.png')}" alt="${escapeHTML(item.name)}"/><div class="detail-copy"><p class="eyebrow">모두의 인덱스에 기록된 표본</p><h2>${escapeHTML(item.name)}</h2><p class="detail-category">${escapeHTML(item.category)}</p>${factsMarkup}<p class="detail-description">${escapeHTML(item.description || '아직 적힌 이야기가 없습니다.')}</p><p class="detail-date">등록일 ${dateLabel(item.created_at)}</p><button class="delete-specimen" id="delete-specimen" type="button" data-id="${escapeHTML(item.id)}">이 표본 삭제 <span>×</span></button></div></div>`;
     $('#detail-dialog').showModal();
+    $('#delete-specimen').addEventListener('click', () => deleteSpecimen(item));
+  }
+
+  async function deleteSpecimen(item) {
+    if (!window.confirm(`“${item.name}” 표본을 삭제할까요? 삭제 후에는 복구할 수 없습니다.`)) return;
+    const button = $('#delete-specimen');
+    button.disabled = true; button.textContent = '삭제 중…';
+    try {
+      if (remote) {
+        const response = await fetch(endpoint(`/rest/v1/specimens?id=eq.${encodeURIComponent(item.id)}`), { method: 'DELETE', headers: headers({ Prefer: 'return=minimal' }) });
+        if (!response.ok) throw new Error('삭제할 수 없습니다. Supabase의 삭제 권한 설정을 확인해 주세요.');
+        const imagePrefix = '/storage/v1/object/public/specimen-images/';
+        const imagePath = item.image_url?.includes(imagePrefix) ? decodeURIComponent(item.image_url.split(imagePrefix)[1]) : '';
+        if (imagePath) {
+          const imageResponse = await fetch(endpoint(`/storage/v1/object/specimen-images/${imagePath.split('/').map(encodeURIComponent).join('/')}`), { method: 'DELETE', headers: headers() });
+          if (!imageResponse.ok) console.warn('Specimen removed, but its image could not be deleted.');
+        }
+      } else {
+        specimens = specimens.filter((specimen) => String(specimen.id) !== String(item.id));
+        localStorage.setItem(STORE_KEY, JSON.stringify(specimens));
+      }
+      specimens = specimens.filter((specimen) => String(specimen.id) !== String(item.id));
+      updateCategoryControls(); renderSpecimens(); $('#detail-dialog').close();
+      announce('표본을 삭제했어요.');
+    } catch (error) {
+      button.disabled = false; button.innerHTML = '이 표본 삭제 <span>×</span>';
+      announce(error.message || '삭제하지 못했어요. 다시 시도해 주세요.');
+    }
   }
 
   async function compressImage(file) {
@@ -164,15 +186,24 @@
   async function saveSpecimen(event) {
     event.preventDefault(); const form = event.currentTarget; const data = new FormData(form);
     const name = String(data.get('name') || '').trim();
-    const category = data.get('category') === '__new' ? String(data.get('newCategory') || '').trim() : String(data.get('category') || '').trim();
+    const category = String(data.get('category') || '').trim();
     const errorBox = $('#form-error'); errorBox.hidden = true;
-    if (!name || !category) { errorBox.textContent = '이름을 적고 카테고리를 선택해 주세요.'; errorBox.hidden = false; return; }
-    if (data.get('category') === '__new' && !category) { errorBox.textContent = '새 카테고리 이름을 적어주세요.'; errorBox.hidden = false; return; }
+    if (!name || !category) { errorBox.textContent = '이름과 카테고리를 적어주세요.'; errorBox.hidden = false; return; }
+    if (category === '진짜 나비') { errorBox.textContent = '진짜 나비는 이 도감에 기록하지 않아요.'; errorBox.hidden = false; return; }
     if (!chosenPhoto) { errorBox.textContent = '표본 사진을 먼저 선택해 주세요.'; errorBox.hidden = false; return; }
     const button = $('#submit-specimen'); button.disabled = true; button.textContent = '인덱스에 기록 중…';
     try {
       const image_url = await uploadPhoto(chosenPhoto);
-      const record = { name, category, description: String(data.get('description') || '').trim(), image_url };
+      const record = {
+        name, category, image_url,
+        observed_on: String(data.get('observed_on') || '') || null,
+        location: String(data.get('location') || '').trim(),
+        dimensions: String(data.get('dimensions') || '').trim(),
+        color_pattern: String(data.get('color_pattern') || '').trim(),
+        material: String(data.get('material') || '').trim(),
+        form: String(data.get('form') || '').trim(),
+        description: String(data.get('description') || '').trim()
+      };
       if (remote) {
         const response = await fetch(endpoint('/rest/v1/specimens'), { method: 'POST', headers: headers({ 'Content-Type': 'application/json', Prefer: 'return=representation' }), body: JSON.stringify(record) });
         if (!response.ok) throw new Error('표본을 저장하지 못했어요. 공개 테이블 설정을 확인해 주세요.');
@@ -180,7 +211,7 @@
       } else {
         record.id = `local-${Date.now()}`; record.created_at = new Date().toISOString(); specimens = [record, ...specimens]; localStorage.setItem(STORE_KEY, JSON.stringify(specimens));
       }
-      selectedCategory = '전체'; updateCategoryControls(); renderSpecimens(); $('#upload-dialog').close(); form.reset(); chosenPhoto = null; $('#photo-preview').hidden = true; $('#photo-preview').removeAttribute('src'); $('#picker-placeholder').hidden = false; $('#new-category-field').hidden = true;
+      selectedCategory = '전체'; updateCategoryControls(); renderSpecimens(); $('#upload-dialog').close(); form.reset(); chosenPhoto = null; $('#photo-preview').hidden = true; $('#photo-preview').removeAttribute('src'); $('#picker-placeholder').hidden = false;
       announce(remote ? '모두의 인덱스에 기록했어요.' : '이 기기의 미리보기에 기록했어요.'); document.querySelector('#archive').scrollIntoView({ behavior: 'smooth' });
     } catch (error) { errorBox.textContent = error.message || '저장하지 못했어요. 다시 시도해 주세요.'; errorBox.hidden = false; }
     finally { button.disabled = false; button.innerHTML = '인덱스에 기록하기 <span>↗</span>'; }
@@ -197,7 +228,6 @@
   $('#camera-dialog').addEventListener('close', stopCamera);
   $('#camera-fallback').addEventListener('click', () => $('#camera-file').click());
   $('#capture-photo').addEventListener('click', capturePhoto);
-  $('#category-select').addEventListener('change', (e) => { const show = e.target.value === '__new'; $('#new-category-field').hidden = !show; $('#new-category').required = show; if (show) $('#new-category').focus(); });
   $('#specimen-form').addEventListener('submit', saveSpecimen);
   $('#search-input').addEventListener('input', renderSpecimens);
   $('#retry-load').addEventListener('click', loadSpecimens);

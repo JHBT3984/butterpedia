@@ -6,32 +6,36 @@
   <meta name="theme-color" content="#ffffff" />
   <meta name="description" content="세상의 모든 나비를 모으는 열린 아카이브." />
   <title>세상의 모든 나비 — 나비도감</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="stylesheet" href="styles.css?v=20261126-9" />
 </head>
-<body class="home-page">
-  <div class="home-shell">
-    <header class="home-header">
-      <a class="brand" href="index.html" aria-label="나비도감"><span class="brand-mark">✳</span><span>나비도감</span></a>
-      <span class="home-edition">A COMMON ARCHIVE&nbsp; / &nbsp;001—∞</span>
-    </header>
+<body class="home-page poster-page">
+  <main class="home-shell poster-shell">
+    <h1 class="poster-wordmark" aria-label="나비도감">
+      <span class="wordmark-paren" aria-hidden="true">(</span>
+      <span class="wordmark-title">나비도감</span>
+      <span class="wordmark-paren" aria-hidden="true">)</span>
+    </h1>
 
-    <main class="home-manifesto">
-      <a class="butterfly-entry" href="archive.html" aria-label="나비 표본 인덱스로 이동">
-        <img src="assets/orange-butterfly-cutout.png" alt="밝은 오렌지색 날개를 펼친 나비" />
+    <div class="poster-navigation" aria-hidden="true">
+      <div class="poster-link"><span class="poster-ring"></span><span class="poster-arrow"><svg viewBox="0 0 160 140"><path d="M15 45H85V15L145 70 85 125V95H15Z" /></svg></span><span>나비</span></div>
+      <div class="poster-link"><span class="poster-ring"></span><span class="poster-arrow"><svg viewBox="0 0 160 140"><path d="M145 45H75V15L15 70 75 125V95H145Z" /><path d="m113 6 24 6-27 122-24-6Z" /></svg></span><span>나비</span></div>
+    </div>
+
+    <section class="poster-stage" aria-label="표본 메뉴와 나비 이미지">
+      <a href="archive.html" class="poster-side-action poster-action-left">표본 보러가기</a>
+      <a class="poster-art-link" href="archive.html" aria-label="나비 표본 모아보기">
+        <img src="assets/poster-butterfly.png" alt="주황과 노랑의 인쇄 질감으로 만든 추상 나비" />
       </a>
-      <a class="home-action action-browse" href="archive.html">표본 모아보기 <span>↗</span></a>
-      <a class="home-action action-add" href="archive.html?add=1">표본 추가하기 <span>＋</span></a>
-      <div class="manifesto-copy">
-        <h1>세상의 모든 <em>나비</em></h1>
-        <p class="manifesto-intro">나비는 정해진 모양이 아닙니다.<br />당신이 나비라고 부른 모든 것을 기록합니다.</p>
-      </div>
-      <span class="home-side-note">ANYTHING MAY TAKE FLIGHT · ANYTHING MAY TAKE FLIGHT ·</span>
-    </main>
+      <a href="archive.html?add=1" class="poster-side-action poster-action-right">표본 추가하기</a>
+    </section>
 
-    <footer class="home-footer"><span>© 2025–∞ BUTTERFLY ARCHIVE</span><span>세상의 모든 나비를 위하여</span></footer>
-  </div>
+    <section class="poster-copy" aria-label="나비도감 소개">
+      <p>모든 것은 나비가 될 수 있다</p>
+      <p>세상의 모든 나비를 모아봅시다</p>
+    </section>
+
+    <p class="poster-warning">단, 진짜 <em>나비</em>는 출입 불가</p>
+  </main>
 </body>
 </html>

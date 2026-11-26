@@ -321,3 +321,208 @@ body{--accent:#ff5a00}
 .archive-page .field textarea,
 .archive-page .field select{border:0;background:#f3f3f3;padding:11px 10px}
 .archive-page .photo-picker.dragover{outline:0}
+.delete-specimen{margin-top:34px;align-self:flex-start;border:1px solid #ff5a00;background:transparent;color:#111;padding:11px 14px;font-size:10px;cursor:pointer;transition:background .2s,color .2s}
+.delete-specimen span{color:#ff5a00;margin-left:18px;font-size:15px}
+.delete-specimen:hover{background:#ff5a00;color:#111}
+.delete-specimen:disabled{opacity:.5;cursor:wait}
+.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 18px}
+.category-hint{font-size:9px;line-height:1.5;color:#898880;margin-top:-3px}
+.detail-facts{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin:0 0 22px}
+.detail-facts>div{padding:10px 0;border-bottom:1px solid #deddd6}
+.detail-facts dt{font:9px var(--mono);color:#898880;margin-bottom:6px}
+.detail-facts dd{margin:0;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.detail-description{white-space:pre-wrap}
+@media(max-width:600px){
+  .archive-page .topbar{height:61px}
+  .archive-page .add-button{padding:9px 11px;font-size:10px}
+  .archive-page .archive-section{padding:24px 0 58px}
+  .archive-page .section-heading{margin-bottom:22px}
+  .archive-page .specimen-grid{gap:10px}
+  .archive-page .upload-dialog{width:calc(100vw - 20px);max-height:96svh}
+  .archive-page .upload-layout{padding:14px;gap:18px}
+  .archive-page .photo-picker{min-height:220px;max-height:32svh}
+  .archive-page .detail-dialog{width:calc(100vw - 20px);max-height:94svh}
+  .archive-page .detail-layout img{height:42svh;min-height:220px}
+  .archive-page .detail-copy{padding:22px 18px 20px}
+  .delete-specimen{margin-top:24px;min-height:42px}
+  .field-grid{grid-template-columns:1fr;gap:15px}
+  .detail-facts{gap:0 10px}
+  .detail-facts dd{font-size:10px}
+}
+
+/* A2Z poster cover, set to mirror the supplied workshop poster. */
+@font-face{font-family:'A2Z';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/%EC%97%90%EC%9D%B4%ED%88%AC%EC%A7%80%EC%B2%B4-4Regular.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:'A2Z';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/%EC%97%90%EC%9D%B4%ED%88%AC%EC%A7%80%EC%B2%B4-6SemiBold.woff2') format('woff2');font-style:normal;font-weight:600;font-display:swap}
+.poster-page{font-family:'A2Z','Noto Sans KR',sans-serif;background:#fff;color:#090909}
+.poster-shell{width:min(1800px,100%);padding:0 clamp(16px,4.2vw,70px);overflow:hidden}
+.poster-header{height:58px;flex:none;border:0}
+.poster-header .brand{font:600 13px/1 'A2Z','Noto Sans KR',sans-serif;letter-spacing:-.04em}
+.poster-header .brand-mark{color:#111;font-size:16px}
+.poster-header .home-edition{font:8px var(--mono);letter-spacing:.08em}
+.poster-main{flex:1;min-height:calc(100svh - 108px);display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;padding:0 0 14px}
+.poster-wordmark{display:flex;align-items:center;justify-content:center;gap:.015em;white-space:nowrap;font:900 clamp(58px,13.6vw,206px)/.92 'A2Z','Noto Sans KR',sans-serif;letter-spacing:-.12em;margin:clamp(32px,6.5vh,82px) 0 clamp(25px,4.5vh,54px)}
+.poster-wordmark>span:nth-child(2){padding-right:.09em}
+.wordmark-wing{display:block;width:.19em;height:.56em;background:#090909;flex:none}
+.wordmark-wing-left{border-radius:100% 0 0 100%}
+.wordmark-wing-right{border-radius:0 100% 100% 0}
+.poster-navigation{display:flex;flex-direction:column;gap:9px;align-items:flex-start;margin:0 0 clamp(26px,4.5vh,52px)}
+.poster-link{display:grid;grid-template-columns:27px 35px auto;align-items:center;gap:8px;min-height:35px;text-align:left;font:700 clamp(16px,2.1vw,25px)/1 'A2Z','Noto Sans KR',sans-serif;letter-spacing:-.04em}
+.poster-ring{width:23px;height:23px;border:2px solid #111;border-radius:50%;display:block;transition:background .2s,transform .2s}
+.poster-arrow{font:900 24px/1 'A2Z','Noto Sans KR',sans-serif;transition:transform .2s}
+.poster-arrow-back{font-size:22px}
+.poster-link:hover .poster-ring{background:#ff5a00;transform:scale(.84)}
+.poster-link:hover .poster-arrow{transform:translateX(5px)}
+.poster-link:hover .poster-arrow-back{transform:translateX(-5px)}
+.poster-copy{margin:0 0 2px;font:400 clamp(14px,1.7vw,21px)/1.75 'A2Z','Noto Sans KR',sans-serif;letter-spacing:-.035em}
+.poster-copy p{margin:0}
+.poster-art-link{display:block;width:min(92vw,1120px);max-width:100%;margin:auto auto 0;line-height:0}
+.poster-art-link img{display:block;width:100%;height:auto;mix-blend-mode:multiply}
+.poster-participation{font:400 clamp(11px,1.4vw,16px)/1.5 'A2Z','Noto Sans KR',sans-serif;margin:clamp(16px,3vh,34px) 0 0;letter-spacing:-.025em}
+.poster-warning{font:700 clamp(21px,4.3vw,48px)/1.4 'A2Z','Noto Sans KR',sans-serif;letter-spacing:-.065em;margin:clamp(18px,3.2vh,38px) 0 clamp(35px,7vh,80px)}
+.poster-warning em{font-style:normal;color:#ff5a00}
+.poster-footer{height:44px;flex:none;border:0;font:8px var(--mono);letter-spacing:.03em}
+@media(max-width:800px){
+  .poster-wordmark{font-size:clamp(62px,14vw,112px);margin-top:5vh;margin-bottom:4vh}
+  .poster-art-link{width:min(96vw,920px)}
+}
+@media(max-width:600px){
+  .poster-shell{padding:0 16px}
+  .poster-header{height:48px}
+  .poster-header .brand{font-size:11px}
+  .poster-header .brand-mark{font-size:14px}
+  .poster-header .home-edition{font-size:6px}
+  .poster-main{min-height:calc(100svh - 94px);padding-bottom:8px}
+  .poster-wordmark{font-size:clamp(50px,14vw,76px);margin:5vh 0 4vh;letter-spacing:-.13em}
+  .wordmark-wing{width:.17em;height:.54em}
+  .poster-navigation{gap:7px;margin-bottom:4vh}
+  .poster-link{grid-template-columns:23px 29px auto;gap:6px;min-height:30px;font-size:16px}
+  .poster-ring{width:19px;height:19px;border-width:1.7px}
+  .poster-arrow{font-size:21px}
+  .poster-copy{font-size:13px;line-height:1.8}
+  .poster-art-link{width:118vw;max-width:none;margin-left:-9vw}
+  .poster-participation{font-size:10px;margin-top:18px}
+  .poster-warning{font-size:clamp(21px,6vw,28px);margin:18px 0 32px}
+  .poster-footer{height:42px;font-size:6px}
+}
+
+/* Poster layout: centered title, side actions, central artwork, and closing line. */
+body.poster-page{background:#bdbdbd;color:#080808;font-family:'A2Z','Noto Sans KR',sans-serif}
+.poster-shell{display:flex;flex-direction:column;align-items:center;width:calc(100% - 50px);max-width:none;min-height:calc(100svh - 54px);margin:32px auto 22px;padding:clamp(70px,9vh,104px) clamp(16px,4vw,70px) clamp(42px,6vh,70px);border:1px solid #171717;background:#fff;overflow:hidden}
+.poster-wordmark{display:flex;align-items:center;justify-content:center;gap:.015em;white-space:nowrap;margin:0;font:900 clamp(48px,5.7vw,86px)/.92 'A2Z','Noto Sans KR',sans-serif;letter-spacing:-.12em}
+.poster-wordmark>span:nth-child(2){padding-right:.09em}
+.wordmark-wing{display:block;width:.19em;height:.56em;flex:none;background:#080808}
+.wordmark-wing-left{border-radius:100% 0 0 100%}
+.wordmark-wing-right{border-radius:0 100% 100% 0}
+.poster-navigation{display:flex;flex-direction:column;align-items:center;gap:0;margin:17px 0 0}
+.poster-link{display:grid;grid-template-columns:72px 31px auto;align-items:center;gap:0;min-height:34px;text-align:left;color:#080808;font:700 clamp(18px,2vw,26px)/1 'A2Z','Noto Sans KR',sans-serif;letter-spacing:-.04em}
+.poster-ring{position:relative;display:block;width:66px;height:30px;border:0;border-radius:0}
+.poster-ring::before,.poster-ring::after{position:absolute;top:50%;transform:translateY(-54%);font:400 30px/1 'A2Z','Noto Sans KR',sans-serif}
+.poster-ring::before{content:'(';left:2px}
+.poster-ring::after{content:')';right:2px}
+.poster-arrow{font:900 24px/1 'A2Z','Noto Sans KR',sans-serif;transition:transform .2s}
+.poster-arrow-back{font-size:23px}
+.poster-link:hover .poster-ring::before,.poster-link:hover .poster-ring::after{color:#ff5a00}
+.poster-link:hover .poster-arrow{transform:translateX(4px)}
+.poster-link:hover .poster-arrow-back{transform:translateX(-4px)}
+.poster-stage{display:grid;grid-template-columns:minmax(135px,1fr) minmax(0,52vw) minmax(135px,1fr);align-items:center;width:min(100%,1360px);height:min(52vh,550px);min-height:355px;margin:-2px auto 0}
+.poster-side-action{justify-self:center;color:#080808;font:700 clamp(17px,2.1vw,29px)/1.3 'A2Z','Noto Sans KR',sans-serif;letter-spacing:-.065em;white-space:nowrap;transition:color .2s}
+.poster-side-action:hover{color:#ff5a00}
+.poster-action-left{grid-column:1}
+.poster-art-link{grid-column:2;grid-row:1;display:block;width:100%;height:100%;max-width:none;margin:0;line-height:0}
+.poster-art-link img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;mix-blend-mode:multiply}
+.poster-action-right{grid-column:3;grid-row:1}
+.poster-copy{text-align:center;margin:0;font:400 clamp(13px,1.35vw,19px)/1.8 'A2Z','Noto Sans KR',sans-serif;letter-spacing:-.035em}
+.poster-copy p{margin:0}
+.poster-warning{font:500 clamp(19px,2.2vw,32px)/1.45 'A2Z','Noto Sans KR',sans-serif;letter-spacing:-.06em;margin:clamp(26px,4.3vh,46px) 0 0;text-align:center}
+.poster-warning em{font-style:normal;color:#ff5a00}
+@media(max-width:900px){
+  .poster-shell{padding-top:clamp(54px,8vh,80px)}
+  .poster-stage{grid-template-columns:minmax(100px,1fr) minmax(0,58vw) minmax(100px,1fr);height:min(48vh,460px);min-height:300px}
+  .poster-side-action{font-size:clamp(15px,2.3vw,21px)}
+}
+@media(max-width:600px){
+  body.poster-page{background:#bdbdbd}
+  .poster-shell{width:calc(100% - 18px);min-height:calc(100svh - 32px);margin:16px 9px;padding:48px 12px 32px}
+  .poster-wordmark{font-size:clamp(43px,12.6vw,64px);letter-spacing:-.13em}
+  .poster-navigation{margin-top:13px}
+  .poster-link{grid-template-columns:58px 26px auto;min-height:29px;font-size:18px}
+  .poster-ring{width:54px;height:26px}
+  .poster-ring::before,.poster-ring::after{font-size:25px}
+  .poster-arrow{font-size:20px}
+  .poster-arrow-back{font-size:19px}
+  .poster-stage{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;grid-template-areas:'art art' 'left right';width:100%;height:auto;min-height:0;margin:5px auto 0}
+  .poster-art-link{grid-area:art;width:min(120vw,560px);height:auto;aspect-ratio:3/2;justify-self:center;margin-left:0}
+  .poster-art-link img{height:100%}
+  .poster-action-left{grid-area:left;justify-self:center}
+  .poster-action-right{grid-area:right;justify-self:center}
+  .poster-side-action{font-size:16px}
+  .poster-copy{font-size:12px;line-height:1.8;margin-top:28px}
+  .poster-warning{font-size:clamp(19px,5.5vw,25px);margin-top:24px}
+}
+
+/* Keep the home canvas identical in size and gutters to the specimen page shell. */
+body.poster-page{background:#fff}
+.poster-shell{width:100%;max-width:1600px;min-height:100svh;margin:0 auto;padding:clamp(68px,9vh,100px) 5.3vw clamp(46px,7vh,76px);border:0}
+@media(max-width:800px){
+  .poster-shell{padding-left:4vw;padding-right:4vw}
+}
+@media(max-width:600px){
+  .poster-shell{width:100%;min-height:100svh;margin:0;padding:46px 4vw 32px}
+}
+
+/* Keep every highlight on the same fluorescent orange as the cover artwork. */
+:root,body{--accent:#ff5a00}
+.submit-button span{color:var(--accent)!important}
+@media(max-width:600px){
+  .poster-wordmark{font-size:clamp(50px,14.5vw,74px)}
+}
+.poster-wordmark{letter-spacing:-.09em}
+.poster-wordmark>span:nth-child(2){padding-right:0}
+.poster-wordmark .wordmark-title{font-weight:600!important;letter-spacing:inherit}
+.poster-wordmark .wordmark-paren{font-family:'A2Z',sans-serif!important;font-size:1em;font-weight:600!important;letter-spacing:inherit;line-height:1}
+.poster-arrow{display:flex;width:31px;height:29px;align-items:center}
+.poster-arrow svg{display:block;width:100%;height:100%;fill:currentColor}
+.poster-warning em{color:var(--accent)}
+
+/* Typography is consistent across the cover and archive: regular, with semibold accents only. */
+body,body *{font-family:'A2Z','Noto Sans KR',sans-serif!important;font-weight:400!important}
+body :is(h1,h2,h3,strong,b,.poster-wordmark,.poster-link,.poster-side-action,.brand,.add-button,.category-chip.selected,.card-name,.detail-copy h2,.submit-button,.delete-specimen){font-weight:600!important}
+
+/* Match the reference proportions: centered compact mark, balanced side actions, and a square visual field. */
+.poster-shell{padding-top:clamp(68px,9vh,100px);padding-bottom:clamp(46px,7vh,76px)}
+.poster-wordmark{font-size:clamp(48px,5.15vw,76px);line-height:.94;gap:.28em}
+.poster-navigation{margin-top:25px}
+.poster-link{font-size:clamp(16px,1.65vw,21px);min-height:29px}
+.poster-stage{grid-template-columns:minmax(145px,1fr) minmax(0,42vw) minmax(145px,1fr);height:auto;min-height:0;margin-top:-2px;flex:0 0 auto;margin-bottom:clamp(58px,8vh,84px)}
+.poster-stage .poster-art-link{width:100%;max-width:620px;height:auto;aspect-ratio:3/2;justify-self:center;align-self:center}
+.poster-stage .poster-art-link img{width:100%;height:100%;object-fit:contain}
+.poster-side-action{font-size:clamp(16px,1.7vw,22px)}
+.poster-copy{font-size:clamp(12px,1.15vw,16px);margin-top:0;position:relative;z-index:1;flex:0 0 auto}
+.poster-warning{font-size:clamp(18px,1.85vw,27px);margin-top:clamp(20px,3.4vh,34px)}
+.poster-wordmark{font-size:clamp(48px,5.15vw,76px)}
+.poster-link{pointer-events:none}
+.poster-arrow-back{font-size:inherit}
+@media(max-width:600px){
+  .poster-wordmark{font-size:clamp(50px,14.5vw,74px)}
+}
+@media(max-width:900px){
+  .poster-stage{grid-template-columns:minmax(95px,1fr) minmax(0,50vw) minmax(95px,1fr);height:auto;min-height:0;margin-bottom:58px}
+  .poster-side-action{font-size:clamp(14px,2vw,18px)}
+}
+@media(max-width:600px){
+  .poster-shell{padding-top:46px;padding-bottom:32px}
+  .poster-wordmark{font-size:clamp(43px,12.6vw,64px)}
+  .poster-stage{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;grid-template-areas:'art art' 'left right';height:auto;min-height:0;margin-top:4px;margin-bottom:42px}
+  .poster-art-link,.poster-stage .poster-art-link{grid-area:art;width:min(82vw,370px);height:auto;aspect-ratio:3/2;justify-self:center}
+  .poster-action-left{grid-area:left;justify-self:center}
+  .poster-action-right{grid-area:right;justify-self:center}
+  .poster-side-action{font-size:15px}
+  .poster-copy{font-size:11px;margin-top:0}
+  .poster-warning{font-size:clamp(18px,5vw,23px);margin-top:20px}
+}
+
+/* A 15% larger reading scale throughout the specimen index in Chrome. */
+.archive-page{zoom:1.15}
+@media(max-width:600px){
+  .poster-wordmark{font-size:clamp(50px,14.5vw,74px)}
+}
