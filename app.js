@@ -377,7 +377,7 @@
     if (!email || !authClient) { message.textContent = '운영자 이메일을 입력해 주세요.'; return; }
     const button = $('#send-admin-link'); button.disabled = true; message.textContent = '로그인 링크를 보내는 중…';
     try {
-      const { error } = await authClient.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}${location.pathname}` } });
+      const { error } = await authClient.auth.signInWithOtp({ email, options: { emailRedirectTo: 'https://jhbt3984.github.io/butterpedia/archive.html' } });
       if (error) throw error;
       message.textContent = '이메일로 일회용 로그인 링크를 보냈어요. 로그인 후 이 페이지를 다시 열어주세요.';
     } catch (error) { message.textContent = error.message || '로그인 링크를 보내지 못했어요.'; }
