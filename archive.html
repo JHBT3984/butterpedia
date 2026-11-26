@@ -7,8 +7,9 @@
   <meta name="description" content="세상의 모든 나비를 모으는 공용 나비 표본 아카이브." />
   <title>나비 표본 — BUTTERFLY ARCHIVE</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="stylesheet" href="styles.css?v=20261126-9" />
+  <link rel="stylesheet" href="styles.css?v=20261126-11" />
   <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="archive-page">
   <div class="site-shell">
@@ -32,6 +33,11 @@
           <div class="category-list" id="category-list" aria-label="카테고리별 보기"></div>
           <label class="search-box"><span>⌕</span><input type="search" id="search-input" placeholder="인덱스 검색" aria-label="인덱스 검색" /></label>
         </div>
+        <section class="notices" aria-labelledby="notice-heading">
+          <div class="notice-heading"><p class="eyebrow">ARCHIVE NOTICE</p><button class="notice-login" id="open-notice-manager" type="button">운영자 로그인</button></div>
+          <h2 id="notice-heading">공지</h2>
+          <div id="notice-list" class="notice-list"><p class="notice-empty">공지를 불러오는 중입니다.</p></div>
+        </section>
         <div class="status-line"><span id="result-label">최근 등록</span><span id="connection-state" class="connection-state"><i></i> 연결 확인 중</span></div>
         <div class="specimen-grid" id="specimen-grid" aria-live="polite"></div>
         <div class="archive-empty" id="archive-empty" hidden><span class="empty-symbol">✳</span><p>아직 기록된 표본이 없습니다.</p><button class="text-link-button" id="empty-add">첫 표본을 추가하기 <span>↗</span></button></div>
@@ -75,12 +81,29 @@
   </dialog>
 
   <dialog id="detail-dialog" class="detail-dialog"><button class="icon-button detail-close" id="close-detail" aria-label="닫기">×</button><div id="detail-content"></div></dialog>
+  <dialog id="notice-dialog" class="notice-dialog">
+    <div class="dialog-head"><span class="eyebrow">ARCHIVE NOTICE</span><button class="icon-button" id="close-notice" type="button" aria-label="닫기">×</button></div>
+    <div class="notice-dialog-body">
+      <p class="eyebrow">운영자 전용</p><h2 id="notice-dialog-title">공지 관리</h2>
+      <div id="notice-login-panel">
+        <p class="notice-help">운영자 이메일로 일회용 로그인 링크를 받아 공지를 작성할 수 있어요.</p>
+        <label class="field"><span>운영자 이메일</span><input id="admin-email" type="email" autocomplete="email" placeholder="이메일 주소" /></label>
+        <button class="submit-button" id="send-admin-link" type="button">로그인 링크 받기 <span>↗</span></button>
+      </div>
+      <form id="notice-form" hidden>
+        <label class="field"><span>공지 제목 <b>*</b></span><input name="title" required maxlength="100" placeholder="공지 제목" /></label>
+        <label class="field"><span>내용 <b>*</b></span><textarea name="body" required maxlength="2000" rows="6" placeholder="방문자에게 전할 내용을 적어주세요."></textarea></label>
+        <div class="notice-admin-actions"><button class="submit-button" type="submit" id="publish-notice">공지 올리기 <span>↗</span></button><button class="notice-signout" id="admin-signout" type="button">로그아웃</button></div>
+      </form>
+      <p id="notice-message" class="form-hint" role="status" aria-live="polite"></p>
+    </div>
+  </dialog>
   <dialog id="camera-dialog" class="camera-dialog" aria-labelledby="camera-title">
     <div class="dialog-head"><span class="eyebrow" id="camera-title">표본 촬영</span><button class="icon-button" id="close-camera" type="button" aria-label="닫기">×</button></div>
     <div class="camera-stage"><video id="camera-video" autoplay playsinline muted></video><div class="camera-placeholder" id="camera-placeholder"><span class="camera-crosshair">＋</span><p>카메라에 나비를 담아보세요.</p><small>촬영을 시작하면 카메라 권한을 요청합니다.</small></div><div class="camera-error" id="camera-error" role="alert" hidden></div></div>
     <div class="camera-controls"><button class="outline-button" id="camera-fallback" type="button">기기 카메라 열기</button><button class="shutter-button" id="capture-photo" type="button" disabled><span></span> 촬영</button></div>
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js"></script>
+  <script src="app.js?v=20261126-1"></script>
 </body>
 </html>

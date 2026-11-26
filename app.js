@@ -2,6 +2,7 @@
   'use strict';
   const config = window.BUTTERFLY_CONFIG || {};
   const remote = Boolean(config.url && config.anonKey);
+  const authClient = remote && window.supabase?.createClient ? window.supabase.createClient(config.url, config.anonKey) : null;
   const endpoint = (path) => `${config.url.replace(/\/$/, '')}${path}`;
   const STORE_KEY = 'butterfly-archive-v2';
   const OWNER_TOKENS_KEY = 'butterfly-archive-owner-tokens-v1';
@@ -13,9 +14,12 @@
   let chosenPhoto = null;
   let cameraStream = null;
   let toastTimer;
+  let adminSession = null;
+  let activeSpecimenId = null;
 
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const headers = (extra = {}) => ({ apikey: config.anonKey, Authorization: `Bearer ${config.anonKey}`, ...extra });
+  const sessionHeaders = (session, extra = {}) => ({ apikey: config.anonKey, Authorization: `Bearer ${session?.access_token || config.anonKey}`, ...extra });
   const getOwnerTokens = () => { try { return JSON.parse(localStorage.getItem(OWNER_TOKENS_KEY) || '{}') || {}; } catch { return {}; } };
   const getOwnerToken = (id) => getOwnerTokens()[String(id)] || '';
   const announce = (message) => {
@@ -59,6 +63,95 @@
     });
   }
 
+  async function loadNotices() {
+    const list = $('#notice-list');
+    if (!remote) { list.innerHTML = '<p class="notice-empty">공지는 공개 사이트에서 확인할 수 있어요.</p>'; return; }
+    try {
+      const response = await fetch(endpoint('/rest/v1/archive_notices?select=id,title,body,created_at&order=created_at.desc&limit=8'), { headers: headers() });
+      if (!response.ok) throw new Error('공지를 불러오지 못했어요.');
+      const notices = await response.json();
+      list.innerHTML = notices.length ? notices.map((notice) => `<article class="notice-item"><time>${dateLabel(notice.created_at)}</time><h3>${escapeHTML(notice.title)}</h3><p>${escapeHTML(notice.body)}</p></article>`).join('') : '<p class="notice-empty">등록된 공지가 없습니다.</p>';
+    } catch (error) { list.innerHTML = `<p class="notice-empty">${escapeHTML(error.message)}</p>`; }
+  }
+
+  async function checkAdminSession(session) {
+    adminSession = session || null;
+    const form = $('#notice-form'); const loginPanel = $('#notice-login-panel'); const message = $('#notice-message');
+    if (!session) { form.hidden = true; loginPanel.hidden = false; message.textContent = ''; return false; }
+    try {
+      const email = String(session.user?.email || '').toLowerCase();
+      const response = await fetch(endpoint(`/rest/v1/archive_admins?select=email&email=eq.${encodeURIComponent(email)}`), { headers: sessionHeaders(session) });
+      if (!response.ok) throw new Error('운영자 권한을 확인하지 못했어요.');
+      const rows = await response.json();
+      if (rows.length) { loginPanel.hidden = true; form.hidden = false; message.textContent = `운영자 로그인됨 · ${email}`; return true; }
+      form.hidden = true; loginPanel.hidden = true;
+      const sqlEmail = email.replace(/'/g, "''");
+      message.textContent = '로그인됐지만 운영자로 등록되지 않았어요. Supabase Dashboard → SQL Editor에서 아래 문장을 한 번 실행해 주세요: insert into public.archive_admins (email) values (lower(\'' + sqlEmail + '\')) on conflict do nothing;';
+      return false;
+    } catch (error) { form.hidden = true; loginPanel.hidden = false; message.textContent = error.message || '운영자 권한을 확인하지 못했어요.'; return false; }
+  }
+
+  async function loadComments(specimenId) {
+    const list = $('#comment-list'); const status = $('#comment-status');
+    list.innerHTML = '<p class="comment-empty">댓글을 불러오는 중입니다.</p>';
+    if (!remote) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(`butterfly-comments-${specimenId}`) || '[]');
+        renderComments(saved);
+      } catch { renderComments([]); }
+      return;
+    }
+    try {
+      const response = await fetch(endpoint(`/rest/v1/specimen_comments?select=id,specimen_id,author,body,created_at&specimen_id=eq.${encodeURIComponent(specimenId)}&order=created_at.asc`), { headers: headers() });
+      if (!response.ok) throw new Error('댓글을 불러오지 못했어요.');
+      renderComments(await response.json());
+    } catch (error) { list.innerHTML = `<p class="comment-empty">${escapeHTML(error.message)}</p>`; }
+  }
+
+  function renderComments(comments) {
+    const list = $('#comment-list');
+    list.innerHTML = comments.length ? comments.map((comment) => `<article class="comment-item"><div><strong>${escapeHTML(comment.author || '익명')}</strong><time>${dateLabel(comment.created_at)}</time></div><p>${escapeHTML(comment.body)}</p></article>`).join('') : '<p class="comment-empty">아직 댓글이 없습니다. 첫 댓글을 남겨보세요.</p>';
+  }
+
+  async function submitComment(event) {
+    event.preventDefault();
+    if (!activeSpecimenId) return;
+    const form = event.currentTarget; const data = new FormData(form);
+    const author = String(data.get('author') || '').trim() || '익명';
+    const body = String(data.get('body') || '').trim();
+    const message = $('#comment-status');
+    if (!body) { message.textContent = '댓글 내용을 적어주세요.'; return; }
+    const submit = $('#submit-comment'); submit.disabled = true; message.textContent = '댓글을 올리는 중…';
+    try {
+      if (remote) {
+        const response = await fetch(endpoint('/rest/v1/specimen_comments'), { method: 'POST', headers: headers({ 'Content-Type': 'application/json', Prefer: 'return=representation' }), body: JSON.stringify({ specimen_id: activeSpecimenId, author, body }) });
+        if (!response.ok) throw new Error('댓글을 올리지 못했어요. 잠시 후 다시 시도해 주세요.');
+        const created = await response.json();
+        const existing = await fetch(endpoint(`/rest/v1/specimen_comments?select=id,specimen_id,author,body,created_at&specimen_id=eq.${encodeURIComponent(activeSpecimenId)}&order=created_at.asc`), { headers: headers() });
+        if (!existing.ok) throw new Error('댓글은 저장됐지만 목록을 새로고침하지 못했어요.');
+        renderComments(await existing.json());
+      } else {
+        const key = `butterfly-comments-${activeSpecimenId}`; const saved = JSON.parse(localStorage.getItem(key) || '[]');
+        saved.push({ author, body, created_at: new Date().toISOString() }); localStorage.setItem(key, JSON.stringify(saved)); renderComments(saved);
+      }
+      form.reset(); message.textContent = '댓글을 남겼어요.';
+    } catch (error) { message.textContent = error.message || '댓글을 올리지 못했어요.'; }
+    finally { submit.disabled = false; }
+  }
+
+  async function publishNotice(event) {
+    event.preventDefault();
+    if (!adminSession || !authClient) { announce('먼저 운영자 로그인 링크로 로그인해 주세요.'); return; }
+    const form = event.currentTarget; const data = new FormData(form); const title = String(data.get('title') || '').trim(); const body = String(data.get('body') || '').trim();
+    const button = $('#publish-notice'); button.disabled = true; $('#notice-message').textContent = '공지를 올리는 중…';
+    try {
+      const response = await fetch(endpoint('/rest/v1/archive_notices'), { method: 'POST', headers: sessionHeaders(adminSession, { 'Content-Type': 'application/json', Prefer: 'return=minimal' }), body: JSON.stringify({ title, body }) });
+      if (!response.ok) throw new Error('공지를 올리지 못했어요. 운영자 등록과 테이블 설정을 확인해 주세요.');
+      form.reset(); await loadNotices(); $('#notice-message').textContent = '공지를 올렸어요.'; announce('공지를 게시했어요.');
+    } catch (error) { $('#notice-message').textContent = error.message || '공지를 올리지 못했어요.'; }
+    finally { button.disabled = false; }
+  }
+
   async function loadSpecimens() {
     if (!remote) {
       try { specimens = JSON.parse(localStorage.getItem(STORE_KEY) || '[]') || []; }
@@ -80,6 +173,7 @@
 
   function showDetail(id) {
     const item = specimens.find((s) => String(s.id) === String(id)); if (!item) return;
+    activeSpecimenId = item.id;
     const facts = [
       ['관찰일', item.observed_on && dateLabel(item.observed_on)],
       ['발견 장소', item.location],
@@ -90,8 +184,10 @@
     ].filter(([, value]) => value);
     const factsMarkup = facts.length ? `<dl class="detail-facts">${facts.map(([label, value]) => `<div><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value)}</dd></div>`).join('')}</dl>` : '';
     const canDelete = !remote || Boolean(getOwnerToken(item.id));
-    $('#detail-content').innerHTML = `<div class="detail-layout"><img src="${escapeHTML(item.image_url || 'assets/orange-butterfly.png')}" alt="${escapeHTML(item.name)}"/><div class="detail-copy"><p class="eyebrow">모두의 인덱스에 기록된 표본</p><h2>${escapeHTML(item.name)}</h2><p class="detail-category">${escapeHTML(item.category)}</p>${factsMarkup}<p class="detail-description">${escapeHTML(item.description || '아직 적힌 이야기가 없습니다.')}</p><p class="detail-date">등록일 ${dateLabel(item.created_at)}</p>${canDelete ? `<button class="delete-specimen" id="delete-specimen" type="button" data-id="${escapeHTML(item.id)}">이 표본 삭제 <span>×</span></button>` : ''}</div></div>`;
+    $('#detail-content').innerHTML = `<div class="detail-layout"><img src="${escapeHTML(item.image_url || 'assets/orange-butterfly.png')}" alt="${escapeHTML(item.name)}"/><div class="detail-copy"><p class="eyebrow">모두의 인덱스에 기록된 표본</p><h2>${escapeHTML(item.name)}</h2><p class="detail-category">${escapeHTML(item.category)}</p>${factsMarkup}<p class="detail-description">${escapeHTML(item.description || '아직 적힌 이야기가 없습니다.')}</p><p class="detail-date">등록일 ${dateLabel(item.created_at)}</p>${canDelete ? `<button class="delete-specimen" id="delete-specimen" type="button" data-id="${escapeHTML(item.id)}">이 표본 삭제 <span>×</span></button>` : ''}</div></div><section class="comments-section" aria-labelledby="comments-heading"><div class="comments-heading"><p class="eyebrow">SPECIMEN NOTES</p><h3 id="comments-heading">댓글</h3></div><div id="comment-list" class="comment-list"></div><form id="comment-form" class="comment-form"><label class="field"><span>이름 <small>(선택)</small></span><input name="author" maxlength="40" placeholder="익명" /></label><label class="field"><span>댓글 <b>*</b></span><textarea name="body" required maxlength="1000" rows="3" placeholder="표본에 대한 생각을 남겨주세요."></textarea></label><p id="comment-status" class="form-hint" role="status" aria-live="polite"></p><button class="submit-button" id="submit-comment" type="submit">댓글 남기기 <span>↗</span></button></form></section>`;
     $('#detail-dialog').showModal();
+    $('#comment-form').addEventListener('submit', submitComment);
+    loadComments(item.id);
     const deleteButton = $('#delete-specimen');
     if (deleteButton) deleteButton.addEventListener('click', () => deleteSpecimen(item));
   }
@@ -231,6 +327,21 @@
   ['#open-upload', '#empty-add', '#about-add'].forEach((sel) => { const el = $(sel); if (el) el.addEventListener('click', openUpload); });
   $('#close-upload').addEventListener('click', () => $('#upload-dialog').close());
   $('#close-detail').addEventListener('click', () => $('#detail-dialog').close());
+  $('#open-notice-manager').addEventListener('click', async () => { $('#notice-dialog').showModal(); if (authClient) { const { data } = await authClient.auth.getSession(); await checkAdminSession(data.session); } else { $('#notice-message').textContent = '원격 인증을 사용할 수 없습니다.'; } });
+  $('#close-notice').addEventListener('click', () => $('#notice-dialog').close());
+  $('#admin-signout').addEventListener('click', async () => { await authClient?.auth.signOut(); await checkAdminSession(null); announce('운영자 로그아웃했어요.'); });
+  $('#send-admin-link').addEventListener('click', async () => {
+    const email = $('#admin-email').value.trim(); const message = $('#notice-message');
+    if (!email || !authClient) { message.textContent = '운영자 이메일을 입력해 주세요.'; return; }
+    const button = $('#send-admin-link'); button.disabled = true; message.textContent = '로그인 링크를 보내는 중…';
+    try {
+      const { error } = await authClient.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}${location.pathname}` } });
+      if (error) throw error;
+      message.textContent = '이메일로 일회용 로그인 링크를 보냈어요. 로그인 후 이 페이지를 다시 열어주세요.';
+    } catch (error) { message.textContent = error.message || '로그인 링크를 보내지 못했어요.'; }
+    finally { button.disabled = false; }
+  });
+  $('#notice-form').addEventListener('submit', publishNotice);
   $('#photo-file').addEventListener('change', (e) => setPhoto(e.target.files[0]));
   $('#camera-file').addEventListener('change', (e) => { if (e.target.files[0]) { setPhoto(e.target.files[0]); $('#camera-dialog').close(); } });
   $('#open-camera').addEventListener('click', openCamera);
@@ -246,6 +357,8 @@
   ['dragleave', 'drop'].forEach((type) => picker.addEventListener(type, (e) => { e.preventDefault(); picker.classList.remove('dragover'); }));
   picker.addEventListener('drop', (e) => setPhoto(e.dataTransfer.files[0]));
   document.querySelectorAll('.main-nav a').forEach((link) => link.addEventListener('click', () => { document.querySelectorAll('.main-nav a').forEach((a) => a.classList.remove('active')); link.classList.add('active'); }));
+  loadNotices();
+  if (authClient) authClient.auth.onAuthStateChange((_event, session) => { if (session && $('#notice-dialog').open) checkAdminSession(session); });
   loadSpecimens().then(() => {
     if (new URLSearchParams(location.search).get('add') === '1') openUpload();
   });
