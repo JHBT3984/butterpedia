@@ -4,6 +4,7 @@
   const remote = Boolean(config.url && config.anonKey);
   const endpoint = (path) => `${config.url.replace(/\/$/, '')}${path}`;
   const STORE_KEY = 'butterfly-archive-v2';
+  const OWNER_TOKENS_KEY = 'butterfly-archive-owner-tokens-v1';
   const $ = (sel) => document.querySelector(sel);
   const grid = $('#specimen-grid');
   const gridEmpty = $('#archive-empty');
@@ -15,6 +16,8 @@
 
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const headers = (extra = {}) => ({ apikey: config.anonKey, Authorization: `Bearer ${config.anonKey}`, ...extra });
+  const getOwnerTokens = () => { try { return JSON.parse(localStorage.getItem(OWNER_TOKENS_KEY) || '{}') || {}; } catch { return {}; } };
+  const getOwnerToken = (id) => getOwnerTokens()[String(id)] || '';
   const announce = (message) => {
     const toast = $('#toast'); toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
@@ -86,25 +89,30 @@
       ['형태', item.form]
     ].filter(([, value]) => value);
     const factsMarkup = facts.length ? `<dl class="detail-facts">${facts.map(([label, value]) => `<div><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value)}</dd></div>`).join('')}</dl>` : '';
-    $('#detail-content').innerHTML = `<div class="detail-layout"><img src="${escapeHTML(item.image_url || 'assets/orange-butterfly.png')}" alt="${escapeHTML(item.name)}"/><div class="detail-copy"><p class="eyebrow">모두의 인덱스에 기록된 표본</p><h2>${escapeHTML(item.name)}</h2><p class="detail-category">${escapeHTML(item.category)}</p>${factsMarkup}<p class="detail-description">${escapeHTML(item.description || '아직 적힌 이야기가 없습니다.')}</p><p class="detail-date">등록일 ${dateLabel(item.created_at)}</p><button class="delete-specimen" id="delete-specimen" type="button" data-id="${escapeHTML(item.id)}">이 표본 삭제 <span>×</span></button></div></div>`;
+    const canDelete = !remote || Boolean(getOwnerToken(item.id));
+    $('#detail-content').innerHTML = `<div class="detail-layout"><img src="${escapeHTML(item.image_url || 'assets/orange-butterfly.png')}" alt="${escapeHTML(item.name)}"/><div class="detail-copy"><p class="eyebrow">모두의 인덱스에 기록된 표본</p><h2>${escapeHTML(item.name)}</h2><p class="detail-category">${escapeHTML(item.category)}</p>${factsMarkup}<p class="detail-description">${escapeHTML(item.description || '아직 적힌 이야기가 없습니다.')}</p><p class="detail-date">등록일 ${dateLabel(item.created_at)}</p>${canDelete ? `<button class="delete-specimen" id="delete-specimen" type="button" data-id="${escapeHTML(item.id)}">이 표본 삭제 <span>×</span></button>` : ''}</div></div>`;
     $('#detail-dialog').showModal();
-    $('#delete-specimen').addEventListener('click', () => deleteSpecimen(item));
+    const deleteButton = $('#delete-specimen');
+    if (deleteButton) deleteButton.addEventListener('click', () => deleteSpecimen(item));
   }
 
   async function deleteSpecimen(item) {
     if (!window.confirm(`“${item.name}” 표본을 삭제할까요? 삭제 후에는 복구할 수 없습니다.`)) return;
     const button = $('#delete-specimen');
+    const ownerToken = remote ? getOwnerToken(item.id) : '';
+    if (remote && !ownerToken) { announce('이 기기에서 직접 등록한 표본만 삭제할 수 있어요.'); return; }
     button.disabled = true; button.textContent = '삭제 중…';
     try {
       if (remote) {
-        const response = await fetch(endpoint(`/rest/v1/specimens?id=eq.${encodeURIComponent(item.id)}`), { method: 'DELETE', headers: headers({ Prefer: 'return=minimal' }) });
-        if (!response.ok) throw new Error('삭제할 수 없습니다. Supabase의 삭제 권한 설정을 확인해 주세요.');
         const imagePrefix = '/storage/v1/object/public/specimen-images/';
         const imagePath = item.image_url?.includes(imagePrefix) ? decodeURIComponent(item.image_url.split(imagePrefix)[1]) : '';
         if (imagePath) {
-          const imageResponse = await fetch(endpoint(`/storage/v1/object/specimen-images/${imagePath.split('/').map(encodeURIComponent).join('/')}`), { method: 'DELETE', headers: headers() });
-          if (!imageResponse.ok) console.warn('Specimen removed, but its image could not be deleted.');
+          const imageResponse = await fetch(endpoint(`/storage/v1/object/specimen-images/${imagePath.split('/').map(encodeURIComponent).join('/')}`), { method: 'DELETE', headers: headers({ 'x-specimen-delete-token': ownerToken }) });
+          if (!imageResponse.ok) throw new Error('사진을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');
         }
+        const response = await fetch(endpoint(`/rest/v1/specimens?id=eq.${encodeURIComponent(item.id)}`), { method: 'DELETE', headers: headers({ Prefer: 'return=minimal', 'x-specimen-delete-token': ownerToken }) });
+        if (!response.ok) throw new Error('삭제할 수 없습니다. 이 기기에서 직접 등록한 표본인지 확인해 주세요.');
+        const tokens = getOwnerTokens(); delete tokens[String(item.id)]; localStorage.setItem(OWNER_TOKENS_KEY, JSON.stringify(tokens));
       } else {
         specimens = specimens.filter((specimen) => String(specimen.id) !== String(item.id));
         localStorage.setItem(STORE_KEY, JSON.stringify(specimens));
@@ -193,6 +201,7 @@
     if (!chosenPhoto) { errorBox.textContent = '표본 사진을 먼저 선택해 주세요.'; errorBox.hidden = false; return; }
     const button = $('#submit-specimen'); button.disabled = true; button.textContent = '인덱스에 기록 중…';
     try {
+      const deleteToken = remote ? `${crypto.randomUUID()}${crypto.randomUUID()}` : '';
       const image_url = await uploadPhoto(chosenPhoto);
       const record = {
         name, category, image_url,
@@ -205,9 +214,10 @@
         description: String(data.get('description') || '').trim()
       };
       if (remote) {
-        const response = await fetch(endpoint('/rest/v1/specimens'), { method: 'POST', headers: headers({ 'Content-Type': 'application/json', Prefer: 'return=representation' }), body: JSON.stringify(record) });
+        const response = await fetch(endpoint('/rest/v1/specimens'), { method: 'POST', headers: headers({ 'Content-Type': 'application/json', Prefer: 'return=representation', 'x-specimen-delete-token': deleteToken }), body: JSON.stringify(record) });
         if (!response.ok) throw new Error('표본을 저장하지 못했어요. 공개 테이블 설정을 확인해 주세요.');
         const result = await response.json(); specimens = [...result, ...specimens];
+        if (result[0]?.id) { const tokens = getOwnerTokens(); tokens[String(result[0].id)] = deleteToken; localStorage.setItem(OWNER_TOKENS_KEY, JSON.stringify(tokens)); }
       } else {
         record.id = `local-${Date.now()}`; record.created_at = new Date().toISOString(); specimens = [record, ...specimens]; localStorage.setItem(STORE_KEY, JSON.stringify(specimens));
       }
